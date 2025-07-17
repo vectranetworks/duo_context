@@ -1,0 +1,5 @@
+keyring
+questionary
+requests
+keyrings.alt
+vectra-api-tools
