@@ -1,5 +1,5 @@
 # Vectra Duo Context
-This is meant to provide Duo Security context to accounts within the Vectra UI based on Duo authentication logs.
+This is meant to provide Duo Security context to accounts within the Vectra UI based on Duo authentication logs. This script **only runs once**. To make this script run continuously, configure something like `cron` for **Linux** or `task scheduler` for **Windows** to initiate the script processing.
 
 ## Requirements
 - Python 3.10+
