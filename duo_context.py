@@ -14,6 +14,7 @@ from pathlib import Path
 import keyring
 import questionary
 import requests
+import tqdm
 from keyrings.alt import file
 from vat.platform import ClientV3_latest
 from vat.vectra import ClientV2_latest
@@ -236,7 +237,7 @@ def main():
             try:
                 args.duo_host = duo_conf.duo_host
             except UnboundLocalError:
-                args.duo_host = questionary.text("Enter Duo API URL:").ask()
+                args.duo_host = questionary.text("Enter Duo API Hostname:").ask()
 
     if not args.vectra_url:
         args.vectra_url = os.getenv("VECTRA_URL", False)
@@ -302,30 +303,32 @@ def main():
             print("No valid Vectra API credentials provided.")
             sys.exit(1)
 
-        vectra_accounts = []
-        for accounts in client.get_all_accounts():
-            vectra_accounts = vectra_accounts + accounts.json()["results"]
-
         new_count = 0
         update_count = 0
-        for log in logs:
-            for account in vectra_accounts:
-                if log["user"]["name"] in account["name"]:
-                    new_note = create_message(log)
-                    duo_notes = False
-                    for note in account["notes"]:
-                        if note["note"].startswith("## DUO Security Context"):
-                            duo_notes = True
-                            if note["note"] != new_note:
-                                update_count += 1
-                                client.update_account_note(
-                                    account_id=account["id"],
-                                    note_id=note["id"],
-                                    note=new_note,
-                                )
-                    if not duo_notes:
-                        new_count += 1
-                        client.set_account_note(account_id=account["id"], note=new_note)
+        for log in tqdm.tqdm(logs, desc="Duo Logs"):
+            for accounts in client.get_all_accounts(
+                name=log["user"]["name"], fields="id,name,notes"
+            ):
+                results = accounts.json()["results"]
+                if results != []:
+                    for account in results:
+                        new_note = create_message(log)
+                        duo_notes = False
+                        for note in account["notes"]:
+                            if note["note"].startswith("## DUO Security Context"):
+                                duo_notes = True
+                                if note["note"] != new_note:
+                                    update_count += 1
+                                    client.update_account_note(
+                                        account_id=account["id"],
+                                        note_id=note["id"],
+                                        note=new_note,
+                                    )
+                        if not duo_notes:
+                            new_count += 1
+                            client.set_account_note(
+                                account_id=account["id"], note=new_note
+                            )
 
         print(
             f"Added {new_count} new notes and updated {update_count} notes in Vectra."

@@ -1,3 +1,4 @@
+tqdm
 keyring
 questionary
 requests
