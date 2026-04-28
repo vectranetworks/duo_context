@@ -24,6 +24,9 @@ def set_plaintext():
     keyring.set_keyring(file.PlaintextKeyring())
 
 
+EDITIONS = ["Duo Premier", "Duo Advantage"]
+
+
 def _get_password(system, key, **kwargs):
     env_value = os.environ.get(f"{system}_{key}")
     if env_value is not None:
@@ -112,7 +115,15 @@ def get_duo_context(ikey, skey, host, path, params, minutes):
     return response.json()
 
 
-def create_message(log):
+def get_duo_version(ikey, skey, host, path):
+    params = {}
+    headers = sign("GET", host, path, params, skey, ikey)
+    url = f"https://{host}{path}"
+    response = requests.get(url, headers=headers, verify=False)
+    return response.json()
+
+
+def create_message(edition, log):
     message = "## DUO Security Context\n"
     message += "|Property|Value |\n"
     message += "|:---|:---|\n"
@@ -125,7 +136,16 @@ def create_message(log):
     message += "|Location (City, State, Country)|"
     message += f"{log['access_device']['location']['city']}, "
     message += f"{log['access_device']['location']['state']}, "
-    message += f"{log['access_device']['location']['country']}|"
+    message += f"{log['access_device']['location']['country']}|\n"
+    if edition in EDITIONS:
+        if log["adaptive_trust_assessments"]["more_secure_auth"]:
+            message += "|More Secure Auth|True|\n"
+            message += f"|Detected Attack Detectors|{log['adaptive_trust_assessments']['more_secure_auth']['detected_attack_detectors']}|\n"
+            message += f"|Reason|{log['adaptive_trust_assessments']['more_secure_auth']['reason']}|\n"
+            message += f"|Policy Enabled|{log['adaptive_trust_assessments']['more_secure_auth']['policy_enabled']}|\n"
+            message += f"|Trust Level|{log['adaptive_trust_assessments']['more_secure_auth']['trust_level']}|\n"
+        else:
+            message += "|More Secure Auth|False|"
     return message
 
 
@@ -272,6 +292,10 @@ def main():
         f.write(f"duo_host='{args.duo_host}'\n")
         f.write(f"vectra_url='{args.vectra_url}'\n")
 
+    edition = get_duo_version(
+        args.ikey, args.skey, args.duo_host, "/admin/v1/info/summary"
+    )["response"]["edition"]
+
     logs = get_duo_context(
         args.ikey,
         args.skey,
@@ -282,6 +306,10 @@ def main():
     )["response"]["authlogs"]
 
     if logs != []:
+        for log in logs:
+            message = create_message(edition, log)
+            print(message)
+        sys.exit()
         if "portal.vectra.ai" in args.vectra_url:
             client = ClientV3_latest(
                 url=args.vectra_url,
@@ -312,7 +340,7 @@ def main():
                 results = accounts.json()["results"]
                 if results != []:
                     for account in results:
-                        new_note = create_message(log)
+                        new_note = create_message(edition, log)
                         duo_notes = False
                         for note in account["notes"]:
                             if note["note"].startswith("## DUO Security Context"):

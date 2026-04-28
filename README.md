@@ -82,6 +82,10 @@ options:
   $ python3 duo_context.py --minutes 60
 ```
 
+## Extra Context
+If your subscription is `Duo Advantage` or `Duo Premier` then there is an additional context entry of `More Secure Auth` to provide details when Duo triggers higher assurance checks mid-flow.
+
+
 ## Resources
 - [Duo Admin API](https://duo.com/docs/adminapi)
 - [Vectra v2.5 API](https://support.vectra.ai/vectra/article/KB-VS-1638)
