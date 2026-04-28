@@ -306,10 +306,6 @@ def main():
     )["response"]["authlogs"]
 
     if logs != []:
-        for log in logs:
-            message = create_message(edition, log)
-            print(message)
-        sys.exit()
         if "portal.vectra.ai" in args.vectra_url:
             client = ClientV3_latest(
                 url=args.vectra_url,
